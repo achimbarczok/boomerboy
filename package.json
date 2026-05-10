@@ -1,0 +1,15 @@
+{
+  "name": "boomerboy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Boomerboy — Retro Arcade browser game",
+  "type": "module",
+  "scripts": {
+    "test": "vitest --run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "fast-check": "^3.22.0",
+    "vitest": "^2.1.0"
+  }
+}

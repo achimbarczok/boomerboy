@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boomerboy</title>
+  <style>
+    /* === Reset & Base === */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* === Game Container: Canvas left, Status right === */
+    #game-container {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    /* === Canvas === */
+    #game-canvas {
+      display: block;
+      background: #1b2640;
+      border: 3px solid #3a4d72;
+      border-radius: 0px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* === Status Panel Container === */
+    #status-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 200px;
+    }
+
+    /* === Individual Player Panel === */
+    .player-panel {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 12px;
+      border-left: 4px solid #555;
+      transition: opacity 0.3s ease;
+    }
+
+    .player-panel[data-player="0"] { border-left-color: #F44336; }
+    .player-panel[data-player="1"] { border-left-color: #FFEB3B; }
+    .player-panel[data-player="2"] { border-left-color: #4CAF50; }
+    .player-panel[data-player="3"] { border-left-color: #2196F3; }
+
+    .player-panel.eliminated {
+      opacity: 0.4;
+    }
+
+    .player-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .player-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+    }
+
+    .player-panel[data-player="0"] .player-avatar { background: #F44336; }
+    .player-panel[data-player="1"] .player-avatar { background: #FFEB3B; }
+    .player-panel[data-player="2"] .player-avatar { background: #4CAF50; }
+    .player-panel[data-player="3"] .player-avatar { background: #2196F3; }
+
+    .player-name {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .player-status {
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+
+    .player-powerups {
+      display: flex;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .powerup-badge {
+      background: #0f3460;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="650" height="550"></canvas>
+
+    <div id="status-panel">
+      <!-- Player 1 (Red) -->
+      <div class="player-panel" data-player="0" id="panel-player-0">
+        <div class="player-header">
+          <div class="player-avatar"></div>
+          <span class="player-name">Spieler 1</span>
+        </div>
+        <div class="player-status">Aktiv</div>
+        <div class="player-powerups"></div>
+      </div>
+
+      <!-- Player 2 (Yellow) -->
+      <div class="player-panel" data-player="1" id="panel-player-1">
+        <div class="player-header">
+          <div class="player-avatar"></div>
+          <span class="player-name">Spieler 2</span>
+        </div>
+        <div class="player-status">Aktiv</div>
+        <div class="player-powerups"></div>
+      </div>
+
+      <!-- Player 3 (Green) -->
+      <div class="player-panel" data-player="2" id="panel-player-2">
+        <div class="player-header">
+          <div class="player-avatar"></div>
+          <span class="player-name">Spieler 3</span>
+        </div>
+        <div class="player-status">Aktiv</div>
+        <div class="player-powerups"></div>
+      </div>
+
+      <!-- Player 4 (Blue) -->
+      <div class="player-panel" data-player="3" id="panel-player-3">
+        <div class="player-header">
+          <div class="player-avatar"></div>
+          <span class="player-name">Spieler 4</span>
+        </div>
+        <div class="player-status">Aktiv</div>
+        <div class="player-powerups"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Boomerboy — Retro Arcade Browser-Spiel
+    // Gesamte Spiellogik wird inline in dieser Datei implementiert.
+    // ============================================================
+
+    // --- Spielkonstanten und Enumerationen (Task 1.2) ---
+    const GamePhase = { STARTSCREEN: 'startscreen', PLAYING: 'playing', ROUND_END: 'round_end' };
+    const CellType = { FLOOR: 0, WALL_INDESTRUCTIBLE: 1, WALL_DESTRUCTIBLE: 2 };
+    const Direction = { UP: 'up', DOWN: 'down', LEFT: 'left', RIGHT: 'right' };
+    const PowerUpType = { EXTRA_BOMB: 'extra_bomb', BIGGER_EXPLOSION: 'bigger_explosion', SPEED: 'speed' };
+    const Color = { RED: '#F44336', YELLOW: '#FFEB3B', GREEN: '#4CAF50', BLUE: '#2196F3' };
+
+    const CONFIG = {
+      BOARD_WIDTH: 13,
+      BOARD_HEIGHT: 11,
+      BOMB_TIMER: 3000,
+      EXPLOSION_DURATION: 500,
+      BASE_MOVE_COOLDOWN: 200,
+      DEFAULT_MAX_BOMBS: 1,
+      DEFAULT_EXPLOSION_RANGE: 2,
+      DEFAULT_SPEED: 1.0,
+      SPEED_INCREMENT: 0.3,
+      POWERUP_SPAWN_CHANCE: 0.3,
+      DESTRUCTIBLE_WALL_DENSITY: 0.45,
+      ROUND_END_DISPLAY_TIME: 3000,
+      MIN_FPS: 30,
+      FALLBACK_INTERVAL: 33,
+      DEFAULT_PLAYER_COUNT: 4,
+      MIN_PLAYER_COUNT: 2,
+      MAX_PLAYER_COUNT: 4,
+      ALL_START_POSITIONS: [
+        { x: 1, y: 1 },
+        { x: 11, y: 1 },
+        { x: 1, y: 9 },
+        { x: 11, y: 9 }
+      ],
+      START_POSITION_MAP: {
+        2: [0, 3],
+        3: [0, 1, 2],
+        4: [0, 1, 2, 3]
+      },
+      ALL_SAFE_ZONES: [
+        [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 2 }],
+        [{ x: 11, y: 1 }, { x: 10, y: 1 }, { x: 11, y: 2 }],
+        [{ x: 1, y: 9 }, { x: 2, y: 9 }, { x: 1, y: 8 }],
+        [{ x: 11, y: 9 }, { x: 10, y: 9 }, { x: 11, y: 8 }]
+      ],
+      getStartPositions(playerCount) {
+        return this.START_POSITION_MAP[playerCount].map(i => this.ALL_START_POSITIONS[i]);
+      },
+      getSafeZones(playerCount) {
+        return this.START_POSITION_MAP[playerCount].map(i => this.ALL_SAFE_ZONES[i]);
+      }
+    };
+
+    // --- BoardManager (Task 2) ---
+    const BoardManager = {
+      grid: [],
+      width: CONFIG.BOARD_WIDTH,
+      height: CONFIG.BOARD_HEIGHT,
+
+      generate(playerCount) {
+        const w = this.width;
+        const h = this.height;
+        const grid = [];
+
+        // Schritt 1: Gesamtes Feld mit FLOOR füllen
+        for (let y = 0; y < h; y++) {
+          const row = [];
+          for (let x = 0; x < w; x++) {
+            row.push(CellType.FLOOR);
+          }
+          grid.push(row);
+        }
+
+        // Schritt 2: Äußeren Rand mit WALL_INDESTRUCTIBLE füllen
+        for (let x = 0; x < w; x++) {
+          grid[0][x] = CellType.WALL_INDESTRUCTIBLE;
+          grid[h - 1][x] = CellType.WALL_INDESTRUCTIBLE;
+        }
+        for (let y = 0; y < h; y++) {
+          grid[y][0] = CellType.WALL_INDESTRUCTIBLE;
+          grid[y][w - 1] = CellType.WALL_INDESTRUCTIBLE;
+        }
+
+        // Schritt 3: Inneres Gittermuster
+        for (let y = 2; y < h - 1; y += 2) {
+          for (let x = 2; x < w - 1; x += 2) {
+            grid[y][x] = CellType.WALL_INDESTRUCTIBLE;
+          }
+        }
+
+        // Schritt 4: Zufällig WALL_DESTRUCTIBLE auf freien Zellen platzieren
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            if (grid[y][x] === CellType.FLOOR) {
+              if (Math.random() < CONFIG.DESTRUCTIBLE_WALL_DENSITY) {
+                grid[y][x] = CellType.WALL_DESTRUCTIBLE;
+              }
+            }
+          }
+        }
+
+        // Schritt 5: L-förmige Startbereiche der teilnehmenden Spieler freihalten
+        const safeZones = CONFIG.getSafeZones(playerCount);
+        for (const zone of safeZones) {
+          for (const pos of zone) {
+            grid[pos.y][pos.x] = CellType.FLOOR;
+          }
+        }
+
+        this.grid = grid;
+        return grid;
+      },
+
+      getCell(x, y) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+          return CellType.WALL_INDESTRUCTIBLE;
+        }
+        return this.grid[y][x];
+      },
+
+      setCell(x, y, type) {
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+          this.grid[y][x] = type;
+        }
+      },
+
+      destroyWall(x, y) {
+        if (this.getCell(x, y) === CellType.WALL_DESTRUCTIBLE) {
+          this.grid[y][x] = CellType.FLOOR;
+          return null;
+        }
+        return null;
+      },
+
+      isWalkable(x, y) {
+        return this.getCell(x, y) === CellType.FLOOR;
+      }
+    };
+
+    // --- PlayerManager (Task 3) ---
+    const PLAYER_COLORS = [Color.RED, Color.YELLOW, Color.GREEN, Color.BLUE];
+
+    const PlayerManager = {
+      players: [],
+      playerCount: 0,
+
+      init(playerCount, startPositions) {
+        this.playerCount = playerCount;
+        this.players = [];
+        for (let i = 0; i < playerCount; i++) {
+          this.players.push({
+            index: i,
+            name: `Spieler ${i + 1}`,
+            color: PLAYER_COLORS[i],
+            position: { x: startPositions[i].x, y: startPositions[i].y },
+            alive: true,
+            maxBombs: CONFIG.DEFAULT_MAX_BOMBS,
+            explosionRange: CONFIG.DEFAULT_EXPLOSION_RANGE,
+            speed: CONFIG.DEFAULT_SPEED,
+            activeBombs: 0,
+            moveCooldown: 0,
+          });
+        }
+      },
+
+      movePlayer(index, direction, board, bombs) {
+        const player = this.players[index];
+        if (!player || !player.alive) return false;
+
+        const dx = direction === Direction.LEFT ? -1 : direction === Direction.RIGHT ? 1 : 0;
+        const dy = direction === Direction.UP ? -1 : direction === Direction.DOWN ? 1 : 0;
+
+        const targetX = player.position.x + dx;
+        const targetY = player.position.y + dy;
+
+        if (!board.isWalkable(targetX, targetY)) return false;
+
+        if (bombs && typeof bombs.hasBombAt === 'function') {
+          if (bombs.hasBombAt(targetX, targetY)) return false;
+        } else if (Array.isArray(bombs)) {
+          const hasBomb = bombs.some(b => b.position.x === targetX && b.position.y === targetY);
+          if (hasBomb) return false;
+        }
+
+        player.position.x = targetX;
+        player.position.y = targetY;
+        player.moveCooldown = CONFIG.BASE_MOVE_COOLDOWN / player.speed;
+        return true;
+      },
+
+      eliminatePlayer(index) {
+        const player = this.players[index];
+        if (player) {
+          player.alive = false;
+        }
+      },
+
+      getAlivePlayers() {
+        return this.players.filter(p => p.alive);
+      },
+
+      checkWinCondition() {
+        const alive = this.getAlivePlayers();
+        if (alive.length === 1) {
+          return { winner: alive[0].index, isDraw: false };
+        }
+        if (alive.length === 0) {
+          return { winner: null, isDraw: true };
+        }
+        return null;
+      },
+
+      update(inputs, deltaTime, board, bombs) {
+        for (let i = 0; i < this.players.length; i++) {
+          const player = this.players[i];
+          if (!player.alive) continue;
+
+          player.moveCooldown = Math.max(0, player.moveCooldown - deltaTime);
+
+          if (inputs && inputs[i]) {
+            const input = inputs[i];
+            if (input.direction && player.moveCooldown <= 0) {
+              this.movePlayer(i, input.direction, board, bombs);
+            }
+          }
+        }
+      },
+    };
+
+    // --- BombManager (Task 5) ---
+    const BombManager = {
+      bombs: [],
+      explosions: [],
+
+      placeBomb(player) {
+        if (!player || !player.alive) return false;
+        if (player.activeBombs >= player.maxBombs) return false;
+        if (this.hasBombAt(player.position.x, player.position.y)) return false;
+
+        this.bombs.push({
+          position: { x: player.position.x, y: player.position.y },
+          ownerIndex: player.index,
+          timer: CONFIG.BOMB_TIMER,
+          range: player.explosionRange,
+        });
+        player.activeBombs++;
+        return true;
+      },
+
+      update(deltaTime, board, playerManager) {
+        for (let i = this.explosions.length - 1; i >= 0; i--) {
+          this.explosions[i].timer -= deltaTime;
+          if (this.explosions[i].timer <= 0) {
+            this.explosions.splice(i, 1);
+          }
+        }
+        const toDetonate = [];
+        for (const bomb of this.bombs) {
+          bomb.timer -= deltaTime;
+          if (bomb.timer <= 0) {
+            toDetonate.push(bomb);
+          }
+        }
+        for (const bomb of toDetonate) {
+          if (this.bombs.includes(bomb)) {
+            this.detonate(bomb, board, playerManager);
+          }
+        }
+      },
+
+      detonate(bomb, board, playerManager) {
+        const bombIndex = this.bombs.indexOf(bomb);
+        if (bombIndex !== -1) {
+          this.bombs.splice(bombIndex, 1);
+        }
+        if (playerManager && playerManager.players) {
+          const owner = playerManager.players[bomb.ownerIndex];
+          if (owner) {
+            owner.activeBombs = Math.max(0, owner.activeBombs - 1);
+          }
+        }
+        const cells = this.calculateExplosionCells(bomb.position, bomb.range, board);
+        this.explosions.push({ cells: cells, timer: CONFIG.EXPLOSION_DURATION });
+        for (const cell of cells) {
+          if (board.getCell(cell.x, cell.y) === CellType.WALL_DESTRUCTIBLE) {
+            board.destroyWall(cell.x, cell.y);
+          }
+        }
+        if (playerManager && playerManager.players) {
+          for (const player of playerManager.players) {
+            if (!player.alive) continue;
+            for (const cell of cells) {
+              if (player.position.x === cell.x && player.position.y === cell.y) {
+                playerManager.eliminatePlayer(player.index);
+                break;
+              }
+            }
+          }
+        }
+        for (const cell of cells) {
+          const chainBomb = this.bombs.find(b => b.position.x === cell.x && b.position.y === cell.y);
+          if (chainBomb) {
+            this.detonate(chainBomb, board, playerManager);
+          }
+        }
+      },
+
+      calculateExplosionCells(position, range, board) {
+        const cells = [{ x: position.x, y: position.y }];
+        const directions = [
+          { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+          { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+        ];
+        for (const dir of directions) {
+          for (let i = 1; i <= range; i++) {
+            const nx = position.x + dir.dx * i;
+            const ny = position.y + dir.dy * i;
+            const cellType = board.getCell(nx, ny);
+            if (cellType === CellType.WALL_INDESTRUCTIBLE) break;
+            if (cellType === CellType.WALL_DESTRUCTIBLE) {
+              cells.push({ x: nx, y: ny });
+              break;
+            }
+            const bombAtCell = this.bombs.find(b => b.position.x === nx && b.position.y === ny);
+            if (bombAtCell) {
+              cells.push({ x: nx, y: ny });
+              break;
+            }
+            cells.push({ x: nx, y: ny });
+          }
+        }
+        return cells;
+      },
+
+      hasBombAt(x, y) {
+        return this.bombs.some(b => b.position.x === x && b.position.y === y);
+      },
+
+      isExplosionAt(x, y) {
+        return this.explosions.some(e => e.cells.some(c => c.x === x && c.y === y));
+      },
+    };
+
+    // --- PowerUpManager (Task 6) ---
+    const PowerUpManager = {
+      powerUps: [],
+
+      spawnPowerUp(position) {
+        if (Math.random() >= CONFIG.POWERUP_SPAWN_CHANCE) return;
+        const types = [PowerUpType.EXTRA_BOMB, PowerUpType.BIGGER_EXPLOSION, PowerUpType.SPEED];
+        const type = types[Math.floor(Math.random() * types.length)];
+        this.powerUps.push({
+          position: { x: position.x, y: position.y },
+          type,
+        });
+      },
+
+      collectPowerUp(position, player) {
+        const index = this.powerUps.findIndex(
+          p => p.position.x === position.x && p.position.y === position.y
+        );
+        if (index === -1) return false;
+        const powerUp = this.powerUps[index];
+        this.powerUps.splice(index, 1);
+        switch (powerUp.type) {
+          case PowerUpType.EXTRA_BOMB:
+            player.maxBombs += 1;
+            break;
+          case PowerUpType.BIGGER_EXPLOSION:
+            player.explosionRange += 1;
+            break;
+          case PowerUpType.SPEED:
+            player.speed += CONFIG.SPEED_INCREMENT;
+            break;
+        }
+        return true;
+      },
+
+      removePowerUp(position) {
+        const index = this.powerUps.findIndex(
+          p => p.position.x === position.x && p.position.y === position.y
+        );
+        if (index !== -1) {
+          this.powerUps.splice(index, 1);
+        }
+      },
+
+      getPowerUpAt(x, y) {
+        return this.powerUps.find(p => p.position.x === x && p.position.y === y) || null;
+      },
+    };
+
+    // --- InputManager (Task 8) ---
+    const InputManager = {
+      keyStates: new Map(),
+      playerCount: 2,
+      keyBindings: [
+        { up: 'w', down: 's', left: 'a', right: 'd', bomb: ' ' },
+        { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', bomb: 'Enter' },
+        { up: 'i', down: 'k', left: 'j', right: 'l', bomb: 'u' },
+        { up: '8', down: '5', left: '4', right: '6', bomb: '0' },
+      ],
+
+      init(playerCount) {
+        this.keyStates = new Map();
+        this.playerCount = Math.max(CONFIG.MIN_PLAYER_COUNT, Math.min(CONFIG.MAX_PLAYER_COUNT, playerCount));
+      },
+
+      handleKeyDown(key) {
+        this.keyStates.set(key, true);
+      },
+
+      handleKeyUp(key) {
+        this.keyStates.set(key, false);
+      },
+
+      isKeyDown(key) {
+        return this.keyStates.get(key) === true;
+      },
+
+      setPlayerCount(count) {
+        this.playerCount = Math.max(CONFIG.MIN_PLAYER_COUNT, Math.min(CONFIG.MAX_PLAYER_COUNT, count));
+      },
+
+      poll() {
+        const inputs = [];
+        for (let i = 0; i < this.playerCount; i++) {
+          const bindings = this.keyBindings[i];
+          let direction = null;
+          if (this.isKeyDown(bindings.up)) direction = Direction.UP;
+          else if (this.isKeyDown(bindings.down)) direction = Direction.DOWN;
+          else if (this.isKeyDown(bindings.left)) direction = Direction.LEFT;
+          else if (this.isKeyDown(bindings.right)) direction = Direction.RIGHT;
+
+          inputs.push({
+            direction,
+            placeBomb: this.isKeyDown(bindings.bomb),
+          });
+        }
+        return inputs;
+      },
+    };
+
+    // --- GameState (Task 9.1) ---
+    const GameState = {
+      phase: GamePhase.STARTSCREEN,
+      playerCount: CONFIG.DEFAULT_PLAYER_COUNT,
+      board: [],
+      players: [],
+      bombs: [],
+      explosions: [],
+      powerUps: [],
+      roundResult: null,
+      roundEndTimer: 0,
+      selectedPlayerCount: CONFIG.DEFAULT_PLAYER_COUNT,
+
+      startRound(playerCount) {
+        const count = Math.max(CONFIG.MIN_PLAYER_COUNT, Math.min(CONFIG.MAX_PLAYER_COUNT, playerCount));
+        this.playerCount = count;
+        this.phase = GamePhase.PLAYING;
+        this.roundResult = null;
+        this.roundEndTimer = 0;
+
+        this.board = BoardManager.generate(count);
+
+        const startPositions = CONFIG.getStartPositions(count);
+        PlayerManager.init(count, startPositions);
+        this.players = PlayerManager.players;
+
+        BombManager.bombs = [];
+        BombManager.explosions = [];
+        this.bombs = BombManager.bombs;
+        this.explosions = BombManager.explosions;
+
+        PowerUpManager.powerUps = [];
+        this.powerUps = PowerUpManager.powerUps;
+
+        InputManager.init(count);
+      },
+
+      endRound(result) {
+        this.phase = GamePhase.ROUND_END;
+        this.roundResult = result;
+        this.roundEndTimer = CONFIG.ROUND_END_DISPLAY_TIME;
+      },
+
+      update(deltaTime) {
+        if (this.phase === GamePhase.ROUND_END) {
+          this.roundEndTimer -= deltaTime;
+          if (this.roundEndTimer <= 0) {
+            this.phase = GamePhase.STARTSCREEN;
+            this.roundResult = null;
+          }
+          return;
+        }
+
+        if (this.phase !== GamePhase.PLAYING) {
+          return;
+        }
+
+        // 1. Get inputs
+        const inputs = InputManager.poll();
+
+        // 2. Process bomb placement from inputs
+        for (let i = 0; i < inputs.length; i++) {
+          if (inputs[i].placeBomb && PlayerManager.players[i] && PlayerManager.players[i].alive) {
+            BombManager.placeBomb(PlayerManager.players[i]);
+          }
+        }
+
+        // 3. Update PlayerManager (movement via inputs)
+        PlayerManager.update(inputs, deltaTime, BoardManager, BombManager);
+
+        // 4. Update BombManager (countdown, detonation)
+        const wallsBefore = [];
+        for (let y = 0; y < CONFIG.BOARD_HEIGHT; y++) {
+          for (let x = 0; x < CONFIG.BOARD_WIDTH; x++) {
+            if (BoardManager.getCell(x, y) === CellType.WALL_DESTRUCTIBLE) {
+              wallsBefore.push({ x, y });
+            }
+          }
+        }
+
+        const explosionCountBefore = BombManager.explosions.length;
+        BombManager.update(deltaTime, BoardManager, PlayerManager);
+
+        // 5. Collect cells from NEW explosions created this frame
+        const newExplosionCells = new Set();
+        for (let i = explosionCountBefore; i < BombManager.explosions.length; i++) {
+          for (const cell of BombManager.explosions[i].cells) {
+            newExplosionCells.add(`${cell.x},${cell.y}`);
+          }
+        }
+
+        // 6. Destroy existing power-ups hit by NEW explosions only
+        for (const key of newExplosionCells) {
+          const [cx, cy] = key.split(',').map(Number);
+          if (PowerUpManager.getPowerUpAt(cx, cy)) {
+            PowerUpManager.removePowerUp({ x: cx, y: cy });
+          }
+        }
+
+        // 7. Spawn NEW power-ups on destroyed walls
+        for (const wall of wallsBefore) {
+          if (BoardManager.getCell(wall.x, wall.y) === CellType.FLOOR) {
+            PowerUpManager.spawnPowerUp(wall);
+          }
+        }
+
+        // 8. Check for power-up collection
+        for (const player of PlayerManager.players) {
+          if (!player.alive) continue;
+          PowerUpManager.collectPowerUp(player.position, player);
+        }
+
+        // 9. Sync references
+        this.board = BoardManager.grid;
+        this.players = PlayerManager.players;
+        this.bombs = BombManager.bombs;
+        this.explosions = BombManager.explosions;
+        this.powerUps = PowerUpManager.powerUps;
+
+        // 10. Check win condition
+        const result = PlayerManager.checkWinCondition();
+        if (result) {
+          this.endRound(result);
+        }
+      },
+    };
+
+    // --- GameLoop (Task 9.2) ---
+    const GameLoop = {
+      lastTimestamp: 0,
+      _intervalId: null,
+
+      start() {
+        this.lastTimestamp = 0;
+        const hasRAF = typeof window.requestAnimationFrame === 'function';
+
+        if (hasRAF) {
+          const loop = (timestamp) => {
+            this.tick(timestamp);
+            window.requestAnimationFrame(loop);
+          };
+          window.requestAnimationFrame(loop);
+        } else {
+          // Fallback: setInterval at ~30 FPS
+          const startTime = Date.now();
+          this._intervalId = setInterval(() => {
+            const timestamp = Date.now() - startTime;
+            this.tick(timestamp);
+          }, CONFIG.FALLBACK_INTERVAL);
+        }
+      },
+
+      tick(timestamp) {
+        if (this.lastTimestamp === 0) {
+          this.lastTimestamp = timestamp;
+          return;
+        }
+
+        let deltaTime = timestamp - this.lastTimestamp;
+        if (deltaTime > 100) {
+          deltaTime = 100;
+        }
+
+        this.lastTimestamp = timestamp;
+
+        GameState.update(deltaTime);
+
+        if (typeof Renderer !== 'undefined' && Renderer && typeof Renderer.draw === 'function') {
+          Renderer.draw(GameState);
+        }
+      },
+
+      startRound(playerCount) {
+        GameState.startRound(playerCount);
+      },
+
+      endRound(result) {
+        GameState.endRound(result);
+      },
+    };
+
+    // --- Renderer (Task 10) ---
+
+    const POWERUP_COLORS = {
+      [PowerUpType.EXTRA_BOMB]: '#9C27B0',
+      [PowerUpType.BIGGER_EXPLOSION]: '#FF5722',
+      [PowerUpType.SPEED]: '#00BCD4',
+    };
+
+    const POWERUP_LABELS = {
+      [PowerUpType.EXTRA_BOMB]: 'B',
+      [PowerUpType.BIGGER_EXPLOSION]: 'E',
+      [PowerUpType.SPEED]: 'S',
+    };
+
+    const Renderer = {
+      canvas: null,
+      ctx: null,
+      cellSize: 50,
+      _clickHandler: null,
+      _resizeHandler: null,
+      _playerCountButtons: [],
+      _startButton: null,
+
+      init(canvas) {
+        this.canvas = canvas;
+        if (canvas && typeof canvas.getContext === 'function') {
+          this.ctx = canvas.getContext('2d');
+          this.ctx.imageSmoothingEnabled = false;
+        }
+        this.calculateCellSize();
+
+        // Set up resize listener
+        this._resizeHandler = () => this.calculateCellSize();
+        window.addEventListener('resize', this._resizeHandler);
+
+        // Set up click handler for start screen
+        this._clickHandler = (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const scaleY = this.canvas.height / rect.height;
+          const mouseX = (e.clientX - rect.left) * scaleX;
+          const mouseY = (e.clientY - rect.top) * scaleY;
+          this.handleCanvasClick(mouseX, mouseY, GameState);
+        };
+        this.canvas.addEventListener('click', this._clickHandler);
+      },
+
+      calculateCellSize() {
+        if (!this.canvas) return 50;
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+
+        // Reserve space for status panel (~220px) and padding
+        const availW = Math.max(500, winW - 240);
+        const availH = Math.max(400, winH - 20);
+
+        const cellW = Math.floor(availW / CONFIG.BOARD_WIDTH);
+        const cellH = Math.floor(availH / CONFIG.BOARD_HEIGHT);
+        this.cellSize = Math.max(40, Math.min(cellW, cellH, 80));
+
+        this.canvas.width = this.cellSize * CONFIG.BOARD_WIDTH;
+        this.canvas.height = this.cellSize * CONFIG.BOARD_HEIGHT;
+        return this.cellSize;
+      },
+
+      draw(gameState) {
+        if (!this.ctx) return;
+
+        if (gameState.phase === GamePhase.STARTSCREEN) {
+          this.drawStartScreen(gameState.selectedPlayerCount);
+        } else if (gameState.phase === GamePhase.PLAYING) {
+          this.drawBoard(gameState.board);
+          this.drawPowerUps(gameState.powerUps);
+          this.drawBombs(gameState.bombs);
+          this.drawExplosions(gameState.explosions);
+          this.drawPlayers(gameState.players);
+          this.updateStatusPanels(gameState.players);
+        } else if (gameState.phase === GamePhase.ROUND_END) {
+          this.drawBoard(gameState.board);
+          this.drawPowerUps(gameState.powerUps);
+          this.drawBombs(gameState.bombs);
+          this.drawExplosions(gameState.explosions);
+          this.drawPlayers(gameState.players);
+          this.drawRoundEnd(gameState.roundResult);
+          this.updateStatusPanels(gameState.players);
+        }
+      },
+
+      drawBoard(board) {
+        const ctx = this.ctx;
+        const cs = this.cellSize;
+        if (!ctx || !board || !board.length) return;
+        const p = Math.max(2, Math.floor(cs / 16));
+
+        for (let y = 0; y < board.length; y++) {
+          for (let x = 0; x < board[y].length; x++) {
+            const cell = board[y][x];
+            const px = x * cs;
+            const py = y * cs;
+
+            if (cell === CellType.WALL_INDESTRUCTIBLE) {
+              ctx.fillStyle = '#2d3a5c';
+            } else if (cell === CellType.WALL_DESTRUCTIBLE) {
+              ctx.fillStyle = '#5c6b99';
+            } else {
+              ctx.fillStyle = '#1b2640';
+            }
+            ctx.fillRect(px, py, cs, cs);
+
+            if (cell === CellType.WALL_INDESTRUCTIBLE) {
+              // Pixel stone block with beveled edges
+              ctx.fillStyle = '#3d4d72';
+              ctx.fillRect(px + p, py + p, cs - p * 2, cs - p * 2);
+              // Top-left highlight
+              ctx.fillStyle = '#4e6090';
+              ctx.fillRect(px, py, cs, p);
+              ctx.fillRect(px, py, p, cs);
+              // Bottom-right shadow
+              ctx.fillStyle = '#1a2540';
+              ctx.fillRect(px, py + cs - p, cs, p);
+              ctx.fillRect(px + cs - p, py, p, cs);
+              // Cross cracks
+              const mid = Math.floor(cs / 2);
+              ctx.fillStyle = '#2a3858';
+              ctx.fillRect(px + mid, py + p, p, cs - p * 2);
+              ctx.fillRect(px + p, py + mid, cs - p * 2, p);
+            } else if (cell === CellType.WALL_DESTRUCTIBLE) {
+              // Pixel brick wall
+              ctx.fillStyle = '#6a7db5';
+              ctx.fillRect(px + p, py + p, cs - p * 2, cs - p * 2);
+              // Top-left highlight
+              ctx.fillStyle = '#7e90c8';
+              ctx.fillRect(px, py, cs, p);
+              ctx.fillRect(px, py, p, cs);
+              // Bottom-right shadow
+              ctx.fillStyle = '#3a4870';
+              ctx.fillRect(px, py + cs - p, cs, p);
+              ctx.fillRect(px + cs - p, py, p, cs);
+              // Brick mortar lines
+              const rowH = Math.floor(cs / 3);
+              const colW = Math.floor(cs / 2);
+              ctx.fillStyle = '#3a4870';
+              for (let r = 1; r < 3; r++) {
+                ctx.fillRect(px + p, py + r * rowH, cs - p * 2, p);
+              }
+              for (let r = 0; r < 3; r++) {
+                const off = (r % 2 === 0) ? 0 : Math.floor(colW / 2);
+                const lx = px + off + colW;
+                if (lx > px + p && lx < px + cs - p) {
+                  ctx.fillRect(lx, py + r * rowH + p, p, rowH - p);
+                }
+              }
+            } else {
+              // Floor: checker pattern
+              if ((x + y) % 2 === 0) {
+                ctx.fillStyle = '#1f2d4a';
+                ctx.fillRect(px, py, cs, cs);
+              }
+              // Subtle dot pattern for retro feel
+              ctx.fillStyle = 'rgba(80,120,180,0.08)';
+              ctx.fillRect(px + Math.floor(cs / 2) - 1, py + Math.floor(cs / 2) - 1, p, p);
+            }
+          }
+        }
+      },
+
+      drawPlayers(players) {
+        const ctx = this.ctx;
+        const cs = this.cellSize;
+        if (!ctx || !players) return;
+        const p = Math.max(2, Math.floor(cs / 16));
+
+        for (const player of players) {
+          if (!player.alive) continue;
+          const bx = player.position.x * cs;
+          const by = player.position.y * cs;
+          const col = player.color;
+          const cx = bx + Math.floor(cs / 2);
+
+          // --- Shadow ---
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
+          ctx.fillRect(cx - p * 5 + p, by + cs - p * 2, p * 10, p);
+
+          // --- Hair / hat top ---
+          ctx.fillStyle = col;
+          ctx.fillRect(cx - p * 3, by + p, p * 6, p);
+
+          // --- Head ---
+          ctx.fillStyle = col;
+          ctx.fillRect(cx - p * 4, by + p * 2, p * 8, p * 5);
+          // Skin face area
+          ctx.fillStyle = '#fdd';
+          ctx.fillRect(cx - p * 3, by + p * 3, p * 6, p * 3);
+          // Eyes
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(cx - p * 3, by + p * 3, p * 2, p * 2);
+          ctx.fillRect(cx + p, by + p * 3, p * 2, p * 2);
+          // Pupils
+          ctx.fillStyle = '#111';
+          ctx.fillRect(cx - p * 2, by + p * 4, p, p);
+          ctx.fillRect(cx + p * 2, by + p * 4, p, p);
+          // Mouth
+          ctx.fillStyle = '#c66';
+          ctx.fillRect(cx - p, by + p * 5, p * 2, p);
+
+          // --- Body / shirt ---
+          ctx.fillStyle = col;
+          ctx.fillRect(cx - p * 4, by + p * 7, p * 8, p * 4);
+          // Shirt highlight
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.fillRect(cx - p * 4, by + p * 7, p * 8, p);
+          // Belt
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillRect(cx - p * 4, by + p * 10, p * 8, p);
+
+          // --- Arms ---
+          ctx.fillStyle = '#fdd';
+          ctx.fillRect(cx - p * 5, by + p * 7, p, p * 3);
+          ctx.fillRect(cx + p * 4, by + p * 7, p, p * 3);
+          // Hands
+          ctx.fillStyle = '#fcc';
+          ctx.fillRect(cx - p * 5, by + p * 10, p, p);
+          ctx.fillRect(cx + p * 4, by + p * 10, p, p);
+
+          // --- Legs ---
+          ctx.fillStyle = '#334';
+          ctx.fillRect(cx - p * 3, by + p * 11, p * 2, p * 3);
+          ctx.fillRect(cx + p, by + p * 11, p * 2, p * 3);
+
+          // --- Shoes ---
+          ctx.fillStyle = '#555';
+          ctx.fillRect(cx - p * 4, by + p * 14, p * 3, p);
+          ctx.fillRect(cx + p, by + p * 14, p * 3, p);
+        }
+      },
+
+      drawBombs(bombs) {
+        const ctx = this.ctx;
+        const cs = this.cellSize;
+        if (!ctx || !bombs) return;
+        const p = Math.max(2, Math.floor(cs / 16));
+        const now = performance.now();
+
+        for (const bomb of bombs) {
+          const bx = bomb.position.x * cs;
+          const by = bomb.position.y * cs;
+
+          // Pulsing animation
+          const pulse = 1 + 0.12 * Math.sin(now * 0.01);
+          const size = Math.floor(p * 10 * pulse);
+          const ox = bx + Math.floor((cs - size) / 2);
+          const oy = by + Math.floor((cs - size) / 2) + p;
+
+          // Bomb body — dark with red tint so it pops on blue
+          ctx.fillStyle = '#2a1520';
+          ctx.fillRect(ox, oy, size, size);
+          // Inner lighter area
+          ctx.fillStyle = '#3d2030';
+          ctx.fillRect(ox + p, oy + p, size - p * 2, size - p * 2);
+          // Highlight
+          ctx.fillStyle = '#6a3050';
+          ctx.fillRect(ox + p, oy + p, p * 2, p * 2);
+
+          // Fuse
+          const fuseX = bx + Math.floor(cs / 2) - p;
+          ctx.fillStyle = '#c88030';
+          ctx.fillRect(fuseX, oy - p * 3, p * 2, p * 3);
+
+          // Spark — bright yellow/white blinking
+          const sparkOn = Math.sin(now * 0.02) > 0;
+          if (sparkOn) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(fuseX - p, oy - p * 5, p * 4, p * 2);
+            ctx.fillStyle = '#ff0';
+            ctx.fillRect(fuseX, oy - p * 4, p * 2, p);
+          } else {
+            ctx.fillStyle = '#fa0';
+            ctx.fillRect(fuseX, oy - p * 4, p * 2, p);
+          }
+
+          // Timer indicator — red pixels at bottom based on remaining time
+          const timerRatio = bomb.timer / CONFIG.BOMB_TIMER;
+          const barW = Math.floor(size * timerRatio);
+          ctx.fillStyle = timerRatio > 0.3 ? '#f44' : '#f00';
+          ctx.fillRect(ox, oy + size + p, barW, p);
+        }
+      },
+
+      drawExplosions(explosions) {
+        const ctx = this.ctx;
+        const cs = this.cellSize;
+        if (!ctx || !explosions) return;
+
+        for (const explosion of explosions) {
+          const alpha = Math.max(0, Math.min(1, explosion.timer / CONFIG.EXPLOSION_DURATION));
+
+          for (const cell of explosion.cells) {
+            const x = cell.x * cs;
+            const y = cell.y * cs;
+
+            // Orange explosion with fade
+            ctx.fillStyle = `rgba(255, 152, 0, ${alpha * 0.8})`;
+            ctx.fillRect(x, y, cs, cs);
+
+            // Cross/plus pattern for retro feel
+            const armW = Math.floor(cs * 0.3);
+            const armOffset = Math.floor((cs - armW) / 2);
+            ctx.fillStyle = `rgba(255, 235, 59, ${alpha * 0.7})`;
+            // Horizontal bar
+            ctx.fillRect(x, y + armOffset, cs, armW);
+            // Vertical bar
+            ctx.fillRect(x + armOffset, y, armW, cs);
+
+            // White hot center square
+            const centerSize = Math.floor(cs * 0.3);
+            const centerOffset = Math.floor((cs - centerSize) / 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+            ctx.fillRect(x + centerOffset, y + centerOffset, centerSize, centerSize);
+          }
+        }
+      },
+
+      drawPowerUps(powerUps) {
+        const ctx = this.ctx;
+        const cs = this.cellSize;
+        if (!ctx || !powerUps) return;
+        const p = Math.max(2, Math.floor(cs / 16));
+
+        for (const pu of powerUps) {
+          const bx = pu.position.x * cs;
+          const by = pu.position.y * cs;
+          const margin = p * 3;
+          const size = cs - margin * 2;
+
+          const color = POWERUP_COLORS[pu.type] || '#9C27B0';
+          const label = POWERUP_LABELS[pu.type] || '?';
+
+          // Outer border
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(bx + margin - p, by + margin - p, size + p * 2, size + p * 2);
+          // Background
+          ctx.fillStyle = color;
+          ctx.fillRect(bx + margin, by + margin, size, size);
+          // Highlight top-left
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          ctx.fillRect(bx + margin, by + margin, size, p);
+          ctx.fillRect(bx + margin, by + margin, p, size);
+          // Shadow bottom-right
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillRect(bx + margin, by + margin + size - p, size, p);
+          ctx.fillRect(bx + margin + size - p, by + margin, p, size);
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${Math.floor(cs * 0.4)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, bx + cs / 2, by + cs / 2 + 1);
+        }
+      },
+
+      drawStartScreen(selectedPlayerCount) {
+        const ctx = this.ctx;
+        if (!ctx || !this.canvas) return;
+        ctx.imageSmoothingEnabled = false;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        // Background
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, w, h);
+
+        // Title (blocky monospace font)
+        ctx.fillStyle = '#FF9800';
+        ctx.font = `bold ${Math.floor(h * 0.12)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Boomerboy', w / 2, h * 0.22);
+
+        // Subtitle
+        ctx.fillStyle = '#aaa';
+        ctx.font = `${Math.floor(h * 0.035)}px monospace`;
+        ctx.fillText('Retro Pixel Multiplayer', w / 2, h * 0.32);
+
+        // Player count label
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = `${Math.floor(h * 0.04)}px monospace`;
+        ctx.fillText('Spieleranzahl:', w / 2, h * 0.44);
+
+        // Player count buttons (2, 3, 4)
+        const btnW = Math.floor(w * 0.12);
+        const btnH = Math.floor(h * 0.08);
+        const btnY = Math.floor(h * 0.50);
+        const gap = Math.floor(w * 0.04);
+        const totalW = btnW * 3 + gap * 2;
+        const startX = (w - totalW) / 2;
+
+        this._playerCountButtons = [];
+        for (let i = 0; i < 3; i++) {
+          const count = i + 2;
+          const bx = startX + i * (btnW + gap);
+          const by = btnY;
+
+          const isSelected = count === selectedPlayerCount;
+          ctx.fillStyle = isSelected ? '#FF9800' : '#16213e';
+          ctx.strokeStyle = isSelected ? '#FF9800' : '#555';
+          ctx.lineWidth = 2;
+
+          this._roundRect(ctx, bx, by, btnW, btnH, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = isSelected ? '#000' : '#e0e0e0';
+          ctx.font = `bold ${Math.floor(h * 0.05)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(count), bx + btnW / 2, by + btnH / 2);
+
+          this._playerCountButtons.push({ x: bx, y: by, w: btnW, h: btnH, count });
+        }
+
+        // Start button
+        const sBtnW = Math.floor(w * 0.3);
+        const sBtnH = Math.floor(h * 0.09);
+        const sBtnX = (w - sBtnW) / 2;
+        const sBtnY = Math.floor(h * 0.65);
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.strokeStyle = '#388E3C';
+        ctx.lineWidth = 2;
+        this._roundRect(ctx, sBtnX, sBtnY, sBtnW, sBtnH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.floor(h * 0.05)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Start', w / 2, sBtnY + sBtnH / 2);
+
+        this._startButton = { x: sBtnX, y: sBtnY, w: sBtnW, h: sBtnH };
+
+        // NumLock hint for 4 players
+        if (selectedPlayerCount === 4) {
+          ctx.fillStyle = '#FF9800';
+          ctx.font = `${Math.floor(h * 0.03)}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Hinweis: NumLock muss aktiviert sein für Spieler 4', w / 2, h * 0.82);
+        }
+
+        // Controls info
+        ctx.fillStyle = '#666';
+        ctx.font = `${Math.floor(h * 0.025)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('P1: WASD + Leertaste | P2: Pfeiltasten + Enter | P3: IJKL + U | P4: Numpad', w / 2, h * 0.90);
+      },
+
+      drawRoundEnd(result) {
+        const ctx = this.ctx;
+        if (!ctx || !this.canvas) return;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        // Semi-transparent overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (result && result.isDraw) {
+          ctx.fillStyle = '#FF9800';
+          ctx.font = `bold ${Math.floor(h * 0.1)}px monospace`;
+          ctx.fillText('Unentschieden!', w / 2, h * 0.4);
+        } else if (result && result.winner !== null && result.winner !== undefined) {
+          const winnerColor = PLAYER_COLORS[result.winner] || '#fff';
+          ctx.fillStyle = winnerColor;
+          ctx.font = `bold ${Math.floor(h * 0.1)}px monospace`;
+          ctx.fillText(`Spieler ${result.winner + 1} gewinnt!`, w / 2, h * 0.4);
+        }
+
+        ctx.fillStyle = '#aaa';
+        ctx.font = `${Math.floor(h * 0.04)}px monospace`;
+        ctx.fillText('Zurück zum Startbildschirm...', w / 2, h * 0.55);
+      },
+
+      updateStatusPanels(players) {
+        if (!players) return;
+
+        for (let i = 0; i < 4; i++) {
+          const panel = document.getElementById(`panel-player-${i}`);
+          if (!panel) continue;
+
+          if (i >= players.length) {
+            panel.style.display = 'none';
+            continue;
+          }
+
+          panel.style.display = '';
+          const player = players[i];
+
+          // Update status text
+          const statusEl = panel.querySelector('.player-status');
+          if (statusEl) {
+            statusEl.textContent = player.alive ? 'Aktiv' : 'Eliminiert';
+          }
+
+          // Add/remove eliminated class
+          if (player.alive) {
+            panel.classList.remove('eliminated');
+          } else {
+            panel.classList.add('eliminated');
+          }
+
+          // Update power-ups display
+          const puContainer = panel.querySelector('.player-powerups');
+          if (puContainer) {
+            puContainer.innerHTML = '';
+
+            if (player.maxBombs > CONFIG.DEFAULT_MAX_BOMBS) {
+              const badge = document.createElement('span');
+              badge.className = 'powerup-badge';
+              badge.style.borderLeft = `3px solid ${POWERUP_COLORS[PowerUpType.EXTRA_BOMB]}`;
+              badge.textContent = '\u{1F4A3}\u00D7' + player.maxBombs;
+              puContainer.appendChild(badge);
+            }
+            if (player.explosionRange > CONFIG.DEFAULT_EXPLOSION_RANGE) {
+              const badge = document.createElement('span');
+              badge.className = 'powerup-badge';
+              badge.style.borderLeft = `3px solid ${POWERUP_COLORS[PowerUpType.BIGGER_EXPLOSION]}`;
+              badge.textContent = '\u{1F4A5}' + player.explosionRange;
+              puContainer.appendChild(badge);
+            }
+            if (player.speed > CONFIG.DEFAULT_SPEED + 0.01) {
+              const badge = document.createElement('span');
+              badge.className = 'powerup-badge';
+              badge.style.borderLeft = `3px solid ${POWERUP_COLORS[PowerUpType.SPEED]}`;
+              badge.textContent = '\u26A1' + player.speed.toFixed(1);
+              puContainer.appendChild(badge);
+            }
+          }
+        }
+      },
+
+      _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      },
+
+      handleCanvasClick(mouseX, mouseY, gameState) {
+        if (!gameState || gameState.phase !== GamePhase.STARTSCREEN) return;
+
+        // Check player count buttons
+        if (this._playerCountButtons) {
+          for (const btn of this._playerCountButtons) {
+            if (mouseX >= btn.x && mouseX <= btn.x + btn.w &&
+                mouseY >= btn.y && mouseY <= btn.y + btn.h) {
+              gameState.selectedPlayerCount = btn.count;
+              return;
+            }
+          }
+        }
+
+        // Check start button
+        if (this._startButton) {
+          const sb = this._startButton;
+          if (mouseX >= sb.x && mouseX <= sb.x + sb.w &&
+              mouseY >= sb.y && mouseY <= sb.y + sb.h) {
+            gameState.startRound(gameState.selectedPlayerCount);
+          }
+        }
+      },
+    };
+
+    // --- Initialisierung (Task 11) ---
+
+    // 1. Get canvas element and initialize Renderer
+    const canvas = document.getElementById('game-canvas');
+    Renderer.init(canvas);
+
+    // 2. Register keyboard event listeners
+    document.addEventListener('keydown', (e) => {
+      InputManager.handleKeyDown(e.key);
+      // Prevent default for game keys (arrows, space, enter)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(e.key)) {
+        e.preventDefault();
+      }
+      // Handle Enter to start game from start screen
+      if (e.key === 'Enter' && GameState.phase === GamePhase.STARTSCREEN) {
+        GameState.startRound(GameState.selectedPlayerCount);
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      InputManager.handleKeyUp(e.key);
+    });
+
+    // 3. Start the game loop
+    GameLoop.start();
+
+  </script>
+</body>
+</html>
