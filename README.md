@@ -2,6 +2,8 @@
 
 Ein Retro-Pixel Arena-Spiel für 2–4 Spieler an einer geteilten Tastatur. Komplett in einer einzigen HTML-Datei gebaut — keine Abhängigkeiten, kein Build-Schritt, einfach öffnen und losspielen.
 
+![Boomerboy Gameplay](screenshot/gameplay.png)
+
 ## 🎮 Spielen
 
 `index.html` in einem beliebigen modernen Browser öffnen. Das war's.
