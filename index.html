@@ -163,6 +163,42 @@
     // Gesamte Spiellogik wird inline in dieser Datei implementiert.
     // ============================================================
 
+    // --- Internationalisierung (i18n) ---
+    const I18N = {
+      de: {
+        subtitle: 'Retro Pixel Multiplayer',
+        playerCount: 'Spieleranzahl:',
+        start: 'Start',
+        numLockHint: 'Hinweis: NumLock muss aktiviert sein für Spieler 4',
+        controls: 'P1: WASD + Leertaste | P2: Pfeiltasten + Enter | P3: IJKL + U | P4: Numpad',
+        player: 'Spieler',
+        active: 'Aktiv',
+        eliminated: 'Eliminiert',
+        wins: 'gewinnt!',
+        draw: 'Unentschieden!',
+        backToStart: 'Zurück zum Startbildschirm...',
+        lang: 'EN',
+      },
+      en: {
+        subtitle: 'Retro Pixel Multiplayer',
+        playerCount: 'Players:',
+        start: 'Start',
+        numLockHint: 'Note: NumLock must be enabled for Player 4',
+        controls: 'P1: WASD + Space | P2: Arrows + Enter | P3: IJKL + U | P4: Numpad',
+        player: 'Player',
+        active: 'Active',
+        eliminated: 'Eliminated',
+        wins: 'wins!',
+        draw: 'Draw!',
+        backToStart: 'Back to start screen...',
+        lang: 'DE',
+      },
+    };
+
+    let currentLang = (navigator.language || '').startsWith('de') ? 'de' : 'en';
+    function t(key) { return I18N[currentLang][key] || I18N.en[key] || key; }
+    function toggleLang() { currentLang = currentLang === 'de' ? 'en' : 'de'; }
+
     // --- Spielkonstanten und Enumerationen (Task 1.2) ---
     const GamePhase = { STARTSCREEN: 'startscreen', PLAYING: 'playing', ROUND_END: 'round_end' };
     const CellType = { FLOOR: 0, WALL_INDESTRUCTIBLE: 1, WALL_DESTRUCTIBLE: 2 };
@@ -312,7 +348,7 @@
         for (let i = 0; i < playerCount; i++) {
           this.players.push({
             index: i,
-            name: `Spieler ${i + 1}`,
+            name: `${t('player')} ${i + 1}`,
             color: PLAYER_COLORS[i],
             position: { x: startPositions[i].x, y: startPositions[i].y },
             alive: true,
@@ -1166,12 +1202,12 @@
         // Subtitle
         ctx.fillStyle = '#aaa';
         ctx.font = `${Math.floor(h * 0.035)}px monospace`;
-        ctx.fillText('Retro Pixel Multiplayer', w / 2, h * 0.32);
+        ctx.fillText(t('subtitle'), w / 2, h * 0.32);
 
         // Player count label
         ctx.fillStyle = '#e0e0e0';
         ctx.font = `${Math.floor(h * 0.04)}px monospace`;
-        ctx.fillText('Spieleranzahl:', w / 2, h * 0.44);
+        ctx.fillText(t('playerCount'), w / 2, h * 0.44);
 
         // Player count buttons (2, 3, 4)
         const btnW = Math.floor(w * 0.12);
@@ -1222,7 +1258,7 @@
         ctx.font = `bold ${Math.floor(h * 0.05)}px monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Start', w / 2, sBtnY + sBtnH / 2);
+        ctx.fillText(t('start'), w / 2, sBtnY + sBtnH / 2);
 
         this._startButton = { x: sBtnX, y: sBtnY, w: sBtnW, h: sBtnH };
 
@@ -1231,14 +1267,31 @@
           ctx.fillStyle = '#FF9800';
           ctx.font = `${Math.floor(h * 0.03)}px monospace`;
           ctx.textAlign = 'center';
-          ctx.fillText('Hinweis: NumLock muss aktiviert sein für Spieler 4', w / 2, h * 0.82);
+          ctx.fillText(t('numLockHint'), w / 2, h * 0.82);
         }
 
         // Controls info
         ctx.fillStyle = '#666';
         ctx.font = `${Math.floor(h * 0.025)}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText('P1: WASD + Leertaste | P2: Pfeiltasten + Enter | P3: IJKL + U | P4: Numpad', w / 2, h * 0.90);
+        ctx.fillText(t('controls'), w / 2, h * 0.90);
+
+        // Language toggle button (top-right)
+        const lBtnW = Math.floor(w * 0.06);
+        const lBtnH = Math.floor(h * 0.05);
+        const lBtnX = w - lBtnW - 10;
+        const lBtnY = 10;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(lBtnX, lBtnY, lBtnW, lBtnH);
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lBtnX, lBtnY, lBtnW, lBtnH);
+        ctx.fillStyle = '#ccc';
+        ctx.font = `bold ${Math.floor(h * 0.03)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t('lang'), lBtnX + lBtnW / 2, lBtnY + lBtnH / 2);
+        this._langButton = { x: lBtnX, y: lBtnY, w: lBtnW, h: lBtnH };
       },
 
       drawRoundEnd(result) {
@@ -1257,17 +1310,17 @@
         if (result && result.isDraw) {
           ctx.fillStyle = '#FF9800';
           ctx.font = `bold ${Math.floor(h * 0.1)}px monospace`;
-          ctx.fillText('Unentschieden!', w / 2, h * 0.4);
+          ctx.fillText(t('draw'), w / 2, h * 0.4);
         } else if (result && result.winner !== null && result.winner !== undefined) {
           const winnerColor = PLAYER_COLORS[result.winner] || '#fff';
           ctx.fillStyle = winnerColor;
           ctx.font = `bold ${Math.floor(h * 0.1)}px monospace`;
-          ctx.fillText(`Spieler ${result.winner + 1} gewinnt!`, w / 2, h * 0.4);
+          ctx.fillText(`${t('player')} ${result.winner + 1} ${t('wins')}`, w / 2, h * 0.4);
         }
 
         ctx.fillStyle = '#aaa';
         ctx.font = `${Math.floor(h * 0.04)}px monospace`;
-        ctx.fillText('Zurück zum Startbildschirm...', w / 2, h * 0.55);
+        ctx.fillText(t('backToStart'), w / 2, h * 0.55);
       },
 
       updateStatusPanels(players) {
@@ -1285,10 +1338,16 @@
           panel.style.display = '';
           const player = players[i];
 
+          // Update player name
+          const nameEl = panel.querySelector('.player-name');
+          if (nameEl) {
+            nameEl.textContent = `${t('player')} ${i + 1}`;
+          }
+
           // Update status text
           const statusEl = panel.querySelector('.player-status');
           if (statusEl) {
-            statusEl.textContent = player.alive ? 'Aktiv' : 'Eliminiert';
+            statusEl.textContent = player.alive ? t('active') : t('eliminated');
           }
 
           // Add/remove eliminated class
@@ -1344,6 +1403,16 @@
 
       handleCanvasClick(mouseX, mouseY, gameState) {
         if (!gameState || gameState.phase !== GamePhase.STARTSCREEN) return;
+
+        // Check language toggle button
+        if (this._langButton) {
+          const lb = this._langButton;
+          if (mouseX >= lb.x && mouseX <= lb.x + lb.w &&
+              mouseY >= lb.y && mouseY <= lb.y + lb.h) {
+            toggleLang();
+            return;
+          }
+        }
 
         // Check player count buttons
         if (this._playerCountButtons) {
