@@ -2,9 +2,9 @@
 
 # 💣 Boomerboy
 
-**Retro-Pixel Arena-Spiel für 2–4 Spieler an einer geteilten Tastatur.**
+**Retro pixel-art arena game for 2–4 players on a shared keyboard.**
 
-Reines HTML5 Canvas + JavaScript — eine Datei, keine Abhängigkeiten, einfach öffnen und losspielen.
+Pure HTML5 Canvas + JavaScript — one file, zero dependencies, just open and play.
 
 ![Boomerboy Gameplay](screenshot/gameplay.png)
 
@@ -12,85 +12,87 @@ Reines HTML5 Canvas + JavaScript — eine Datei, keine Abhängigkeiten, einfach 
 [![Tests](https://img.shields.io/badge/Tests-165%20passing-brightgreen.svg)](#tests)
 [![Built with Kiro](https://img.shields.io/badge/Built%20with-Kiro-blue.svg)](https://kiro.dev)
 
+[🇩🇪 Deutsche Version](README.de.md)
+
 </div>
 
 ---
 
-## Inhaltsverzeichnis
+## Table of Contents
 
-- [Spielen](#spielen)
+- [Play](#play)
 - [Features](#features)
-- [Steuerung](#steuerung)
-- [Spielanleitung](#spielanleitung)
-- [Entwicklung](#entwicklung)
+- [Controls](#controls)
+- [How to Play](#how-to-play)
+- [Development](#development)
 - [Tests](#tests)
-- [Technik](#technik)
-- [Gebaut mit Kiro](#gebaut-mit-kiro)
-- [Lizenz](#lizenz)
+- [Tech Stack](#tech-stack)
+- [Built with Kiro](#built-with-kiro)
+- [License](#license)
 
-## Spielen
+## Play
 
 ```
-index.html im Browser öffnen. Fertig.
+Open index.html in any modern browser. That's it.
 ```
 
-Kein Server, kein Build, keine Installation nötig. Funktioniert in jedem modernen Browser.
+No server, no build step, no installation required.
 
 ## Features
 
-- 🎮 **2–4 Spieler** an einer Tastatur (lokaler Multiplayer)
-- 💣 **Bomben, Kettenexplosionen** und zerstörbare Wände
-- ⚡ **Power-Ups** (Extra-Bomben, größere Reichweite, Geschwindigkeit)
-- 🎨 **Pixel-Art Retro-Grafik** mit HTML5 Canvas
-- 📦 **Zero Dependencies** — eine einzige HTML-Datei
-- 🔄 **Zufällig generierte Spielfelder** für jede Runde
+- 🎮 **2–4 players** on a single keyboard (local multiplayer)
+- 💣 **Bombs, chain explosions** and destructible walls
+- ⚡ **Power-ups** (extra bombs, bigger range, speed boost)
+- 🎨 **Pixel-art retro graphics** with HTML5 Canvas
+- 📦 **Zero dependencies** — a single HTML file
+- 🔄 **Randomly generated maps** for every round
 
-## Steuerung
+## Controls
 
-| Spieler | Bewegen | Bombe |
-|---------|---------|-------|
-| 🔴 Spieler 1 | `W` `A` `S` `D` | `Leertaste` |
-| 🟡 Spieler 2 | `↑` `←` `↓` `→` | `Enter` |
-| 🟢 Spieler 3 | `I` `J` `K` `L` | `U` |
-| 🔵 Spieler 4 | `Num8` `Num4` `Num5` `Num6` | `Num0` |
+| Player | Move | Bomb |
+|--------|------|------|
+| 🔴 Player 1 | `W` `A` `S` `D` | `Space` |
+| 🟡 Player 2 | `↑` `←` `↓` `→` | `Enter` |
+| 🟢 Player 3 | `I` `J` `K` `L` | `U` |
+| 🔵 Player 4 | `Num8` `Num4` `Num5` `Num6` | `Num0` |
 
-> 💡 Spieler 4 benötigt aktiviertes NumLock.
+> 💡 Player 4 requires NumLock to be enabled.
 
-## Spielanleitung
+## How to Play
 
-1. Spieleranzahl auf dem Startbildschirm wählen (2, 3 oder 4)
-2. Bomben platzieren, um Wände zu zerstören und Gegner zu eliminieren
-3. Power-Ups unter zerstörbaren Wänden einsammeln:
-   - **B** (lila) — Zusätzliche Bombe
-   - **E** (orange) — Größere Explosionsreichweite
-   - **S** (cyan) — Geschwindigkeitsboost
-4. Der letzte überlebende Spieler gewinnt die Runde
-5. Bei gleichzeitiger Eliminierung aller Spieler → Unentschieden
+1. Select player count on the start screen (2, 3, or 4)
+2. Place bombs to destroy walls and eliminate opponents
+3. Collect power-ups hidden under destructible walls:
+   - **B** (purple) — Extra bomb capacity
+   - **E** (orange) — Bigger explosion range
+   - **S** (cyan) — Speed boost
+4. Last player standing wins the round
+5. If all remaining players are eliminated simultaneously → draw
 
-## Entwicklung
+## Development
 
-Die Spiellogik liegt in `src/game.js` (importierbares ES-Modul für Tests) und ist zusätzlich inline in `index.html` für den abhängigkeitsfreien Browser-Betrieb.
+Game logic lives in `src/game.js` (importable ES module for testing) and is duplicated inline in `index.html` for zero-dependency browser play.
 
 ```bash
-npm install        # Dev-Dependencies installieren
-npm test           # Alle Tests ausführen
-npm run test:watch # Tests im Watch-Modus
+npm install        # Install dev dependencies
+npm test           # Run all tests
+npm run test:watch # Watch mode
 ```
 
-### Projektstruktur
+### Project Structure
 
 ```
-├── index.html          # Komplettes Spiel (spielbar ohne Build)
+├── index.html          # Complete game (playable without build)
 ├── src/
-│   └── game.js         # Spiellogik als ES-Modul (für Tests)
+│   └── game.js         # Game logic as ES module (for tests)
 ├── tests/
-│   ├── board.test.js   # Spielfeld-Tests
-│   ├── bomb.test.js    # Bomben-Tests
-│   ├── player.test.js  # Spieler-Tests
-│   ├── powerup.test.js # Power-Up-Tests
-│   ├── input.test.js   # Eingabe-Tests
-│   ├── gamestate.test.js # GameState-Tests
-│   └── generators.js   # Shared fast-check Generatoren
+│   ├── board.test.js   # Board generation tests
+│   ├── bomb.test.js    # Bomb & explosion tests
+│   ├── player.test.js  # Player movement tests
+│   ├── powerup.test.js # Power-up tests
+│   ├── input.test.js   # Input handling tests
+│   ├── gamestate.test.js # Game state tests
+│   └── generators.js   # Shared fast-check generators
 ├── screenshot/
 │   └── gameplay.png
 ├── package.json
@@ -99,7 +101,7 @@ npm run test:watch # Tests im Watch-Modus
 
 ## Tests
 
-165 Tests, davon 18 Property-Based Tests die universelle Korrektheitseigenschaften validieren.
+165 tests including 18 property-based tests validating universal correctness properties.
 
 ```bash
 npm test
@@ -118,20 +120,20 @@ npm test
       Tests  165 passed (165)
 ```
 
-## Technik
+## Tech Stack
 
-| Komponente | Technologie |
-|-----------|-------------|
-| Rendering | HTML5 Canvas (Pixel-Art, `imageSmoothingEnabled: false`) |
-| Spiellogik | Vanilla JavaScript (ES Modules) |
-| Spielschleife | `requestAnimationFrame` mit Delta-Time |
+| Component | Technology |
+|-----------|------------|
+| Rendering | HTML5 Canvas (pixel-art, `imageSmoothingEnabled: false`) |
+| Game logic | Vanilla JavaScript (ES Modules) |
+| Game loop | `requestAnimationFrame` with delta-time |
 | Tests | [Vitest](https://vitest.dev) + [fast-check](https://github.com/dubzzz/fast-check) |
-| Architektur | Single-File (inline) + modulare Testversion |
+| Architecture | Single-file (inline) + modular test version |
 
-## Gebaut mit Kiro
+## Built with Kiro
 
-Dieses Spiel wurde vollständig mit [Kiro](https://kiro.dev) entwickelt — einer KI-gestützten Entwicklungsumgebung, die Spec-Driven Development unterstützt. Der gesamte Prozess von Anforderungen über Design bis zur Implementierung und den Property-Based Tests wurde mit Kiro durchgeführt.
+This game was built entirely with [Kiro](https://kiro.dev) — an AI-powered development environment that supports spec-driven development. The entire process from requirements through design to implementation and property-based tests was done with Kiro.
 
-## Lizenz
+## License
 
 [MIT](LICENSE)
