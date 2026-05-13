@@ -1,8 +1,4 @@
-<p align="center">
-  <strong>💣 Boomerboy</strong>
-</p>
-
-<h1 align="center">Boomerboy</h1>
+<h1 align="center">💣Boomerboy</h1>
 
 <p align="center">
   <strong>Retro Pixel Multiplayer Arena</strong><br>
