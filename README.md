@@ -3,7 +3,8 @@
 <p align="center">
   <strong>Retro Pixel Multiplayer Arena</strong><br>
   A local multiplayer game for 2–4 players on a shared keyboard. Pure HTML5 Canvas — one file, zero dependencies.<br>
-  <sub>Built with <a href="https://kiro.dev">Kiro</a></sub>
+  <sub>Built with <a href="https://kiro.dev">Kiro</a></sub><br>
+  <sub><a href="README.de.md">🇩🇪 Deutsche Version</a></sub>
 </p>
 
 ---

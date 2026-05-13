@@ -1,20 +1,11 @@
-<div align="center">
+<h1 align="center">💣Boomerboy</h1>
 
-# 💣 Boomerboy
-
-**Retro-Pixel Arena-Spiel für 2–4 Spieler an einer geteilten Tastatur.**
-
-Reines HTML5 Canvas + JavaScript — eine Datei, keine Abhängigkeiten, einfach öffnen und losspielen.
-
-![Boomerboy Gameplay](screenshot/gameplay.png)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-165%20passing-brightgreen.svg)](#tests)
-[![Built with Kiro](https://img.shields.io/badge/Built%20with-Kiro-blue.svg)](https://kiro.dev)
-
-[🇬🇧 English Version](README.md)
-
-</div>
+<p align="center">
+  <strong>Retro Pixel Multiplayer Arena</strong><br>
+  Ein lokales Multiplayer-Spiel für 2–4 Spieler an einer geteilten Tastatur. Reines HTML5 Canvas — eine Datei, keine Abhängigkeiten.<br>
+  <sub>Gebaut mit <a href="https://kiro.dev">Kiro</a></sub><br>
+  <sub><a href="README.md">🇬🇧 English Version</a></sub>
+</p>
 
 ---
 
