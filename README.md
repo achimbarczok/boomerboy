@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="screenshot/gameplay.png" alt="Boomerboy Gameplay" width="600">
+  <strong>💣 Boomerboy</strong>
 </p>
 
-<h1 align="center">💣 Boomerboy</h1>
+<h1 align="center">Boomerboy</h1>
 
 <p align="center">
   <strong>Retro Pixel Multiplayer Arena</strong><br>
@@ -15,6 +15,7 @@
 ## Table of Contents
 
 - [Features](#features)
+- [Screenshot](#screenshot)
 - [Quick Start](#quick-start)
 - [Controls](#controls)
 - [How to Play](#how-to-play)
@@ -35,6 +36,12 @@
 - 🌐 **Bilingual** — German and English UI (auto-detected, switchable)
 
 > **Note:** The game auto-detects browser language (DE/EN). A toggle button is available on the start screen.
+
+## Screenshot
+
+<p align="center">
+  <img src="screenshot/gameplay.png" alt="Boomerboy Gameplay" width="700">
+</p>
 
 ## Quick Start
 
