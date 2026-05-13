@@ -26,15 +26,13 @@
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| 🎮 Local multiplayer | 2–4 players on a single keyboard |
-| 💣 Bombs & chain explosions | Strategic bomb placement with chain reactions |
-| ⚡ Power-ups | Extra bombs, bigger range, speed boost — hidden under walls |
-| 🎨 Pixel-art graphics | Retro-style rendering with HTML5 Canvas |
-| 📦 Zero dependencies | Single HTML file, no build step, no server |
-| 🔄 Random maps | Procedurally generated board every round |
-| 🌐 Bilingual | German and English UI (auto-detected, switchable) |
+- 🎮 **2–4 players** on a single keyboard (local multiplayer)
+- 💣 **Bombs, chain explosions** and destructible walls
+- ⚡ **Power-ups** (extra bombs, bigger range, speed boost)
+- 🎨 **Pixel-art retro graphics** with HTML5 Canvas
+- 📦 **Zero dependencies** — a single HTML file
+- 🔄 **Randomly generated maps** for every round
+- 🌐 **Bilingual** — German and English UI (auto-detected, switchable)
 
 > **Note:** The game auto-detects browser language (DE/EN). A toggle button is available on the start screen.
 
